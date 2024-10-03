@@ -3,17 +3,10 @@ package com.goorm.goormweek2.security.token;
 import static java.lang.System.getenv;
 
 import com.goorm.goormweek2.member.MemberRepository;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.*;
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Collection;
-import java.util.Map;
-import java.util.Objects;
+
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,8 +30,30 @@ public class TokenProvider {
     private static final String AUTHORITIES_KEY = "ROLE_USER";
 
     public TokenDTO generateToken(Authentication authentication) {
+        long expirationTime = 1000L * 60 * 60;
 
-        //구현
+        // 현재 시간
+        long now = System.currentTimeMillis();
+
+        // Access Token 생성
+        String accessToken = Jwts.builder()
+                .setSubject(authentication.getName())
+                .claim(AUTHORITIES_KEY, authentication.getAuthorities().stream()
+                        .map(GrantedAuthority::getAuthority).collect(Collectors.joining(",")))
+                .setIssuedAt(new Date(now))
+                .setExpiration(new Date(now + expirationTime))
+                .signWith(SignatureAlgorithm.HS512, secretKey)
+                .compact();
+
+        // Refresh Token 생성 (여기서는 간단히 Access Token과 같은 방식으로 생성)
+        String refreshToken = Jwts.builder()
+                .setSubject(authentication.getName())
+                .setIssuedAt(new Date(now))
+                .setExpiration(new Date(now + expirationTime * 2)) // Refresh Token은 더 긴 만료 시간
+                .signWith(SignatureAlgorithm.HS512, secretKey)
+                .compact();
+
+        return new TokenDTO(accessToken, refreshToken);
 
     }
 
@@ -61,15 +76,44 @@ public class TokenProvider {
 
     //액세스 토큰과 리프레시 토큰 함께 재발행
     public TokenDTO reissueToken(String refreshToken) {
+        if (!validateToken(refreshToken)) {
+            throw new RuntimeException("유효하지 않은 리프레시 토큰입니다.");
+        }
 
-        //구현
+        // 리프레시 토큰에서 claims 가져오기
+        Claims claims = getClaims(refreshToken);
+        String username = claims.getSubject();
+
+        // 사용자의 권한 가져오기 (여기서는 ROLE_USER만 사용하는 예시)
+        Collection<GrantedAuthority> authorities = Arrays.asList(new SimpleGrantedAuthority(AUTHORITIES_KEY));
+
+        // 새로운 액세스 토큰 생성
+        String newAccessToken = Jwts.builder()
+                .setSubject(username)
+                .claim(AUTHORITIES_KEY, authorities.stream()
+                        .map(GrantedAuthority::getAuthority)
+                        .collect(Collectors.joining(",")))
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 30)) // 30분 후 만료
+                .signWith(SignatureAlgorithm.HS256, secretKey)
+                .compact();
+
+        // 새로운 리프레시 토큰 생성 (옵션)
+        String newRefreshToken = Jwts.builder()
+                .setSubject(username)
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24 * 7)) // 7일 후 만료
+                .signWith(SignatureAlgorithm.HS256, secretKey)
+                .compact();
+
+        // 토큰 DTO 반환
+        return new TokenDTO(newAccessToken, newRefreshToken);
 
     }
 
     public TokenDTO resolveToken(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
-            // 구현
+            String token = bearerToken.substring(7); // "Bearer " 다음부터의 문자열 추출
+            return new TokenDTO(token, null); // Refresh Token은 null로 반환
         }
         return null;
     }

@@ -22,11 +22,11 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
         String token = request.getHeader("Authorization");
         TokenDTO jwtTokenDto = tokenProvider.resolveToken(request);
         if (token != null && token.startsWith("Bearer ")) {
-            if (!tokenProvider.validateToken(액세스토큰) {
+            if (!tokenProvider.validateToken(jwtTokenDto.getAccessToken())){
                 response.sendError(401, "만료되었습니다.");
                 throw new ExpiredJwtException(null, null, "Token has expired");
             }
-            Authentication authentication = tokenProvider.getAuthentication(액세스토큰);
+            Authentication authentication = tokenProvider.getAuthentication(jwtTokenDto.getAccessToken());
             SecurityContextHolder.getContext().setAuthentication(authentication);
         }
         filterChain.doFilter(request, response);

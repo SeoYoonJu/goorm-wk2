@@ -1,6 +1,7 @@
 package com.goorm.goormweek2.member;
 
 import com.goorm.goormweek2.security.token.TokenDTO;
+import com.goorm.goormweek2.security.token.TokenProvider;
 import jakarta.transaction.Transactional;
 import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
@@ -41,9 +42,9 @@ public class MemberService {
                 = new UsernamePasswordAuthenticationToken(email, password);
             Authentication authentication
                 = authenticationManager.authenticate(token);
-            TokenDTO token = tokenProvider.generateToken(authentication);
+            TokenDTO token1 = tokenProvider.generateToken(authentication);
 
-            return token;
+            return token1;
         }
     }
 

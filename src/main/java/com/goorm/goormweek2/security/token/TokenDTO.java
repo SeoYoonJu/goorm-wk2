@@ -11,5 +11,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class TokenDTO {
-    //구현
+    private String accessToken;
+    private String refreshToken;
 }
